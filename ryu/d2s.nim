@@ -126,7 +126,7 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
       # This should use q <= 22, but I think 21 is also safe. Smaller values
       # may still be safe, but it's more difficult to reason about them.
       # Only one of mp, mv, and mm can be a multiple of 5, if any.
-      let mvMod5: uint32 = (uint32_t(mv)) - 5 * (uint32_t(div5(mv)))
+      let mvMod5: uint32 = (uint32_t(mv)) - 5 * (uint32_t(mv div 5))
       if mvMod5 == 0:
         vrIsTrailingZeros = multipleOfPowerOf5(mv, q)
       elif acceptBounds:
@@ -186,12 +186,12 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
   if vmIsTrailingZeros or vrIsTrailingZeros:
     # General case, which happens rarely (~0.7%).
     while true:
-      let vpDiv10: uint64 = div10(vp)
-      let vmDiv10: uint64 = div10(vm)
+      let vpDiv10: uint64 = vp div 10
+      let vmDiv10: uint64 = vm div 10
       if vpDiv10 <= vmDiv10:
         break
       let vmMod10: uint32 = (uint32_t(vm)) - 10 * (uint32_t(vmDiv10))
-      let vrDiv10: uint64 = div10(vr)
+      let vrDiv10: uint64 = vr div 10
       let vrMod10: uint32 = (uint32_t(vr)) - 10 * (uint32_t(vrDiv10))
       vmIsTrailingZeros = vmIsTrailingZeros and vmMod10 == 0
       vrIsTrailingZeros = vrIsTrailingZeros and lastRemovedDigit == 0
@@ -205,12 +205,12 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
       c_printf("d-10=%s\n", if vmIsTrailingZeros: "true" else: "false")
     if vmIsTrailingZeros:
       while true:
-        let vmDiv10: uint64 = div10(vm)
+        let vmDiv10: uint64 = vm div 10
         let vmMod10: uint32 = (uint32_t(vm)) - 10 * (uint32_t(vmDiv10))
         if vmMod10 != 0:
           break
-        let vpDiv10: uint64 = div10(vp)
-        let vrDiv10: uint64 = div10(vr)
+        let vpDiv10: uint64 = vp div 10
+        let vrDiv10: uint64 = vr div 10
         let vrMod10: uint32 = (uint32_t(vr)) - 10 * (uint32_t(vrDiv10))
         vrIsTrailingZeros = vrIsTrailingZeros and lastRemovedDigit == 0
         lastRemovedDigit = uint8_t(vrMod10)
@@ -229,10 +229,10 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
   else:
     # Specialized for the common case (~99.3%). Percentages below are relative to this.
     var roundUp: bool = false
-    let vpDiv100: uint64 = div100(vp)
-    let vmDiv100: uint64 = div100(vm)
+    let vpDiv100: uint64 = vp div 100
+    let vmDiv100: uint64 = vm div 100
     if vpDiv100 > vmDiv100: # Optimization: remove two digits at a time (~86.2%).
-      let vrDiv100: uint64 = div100(vr)
+      let vrDiv100: uint64 = vr div 100
       let vrMod100: uint32 = (uint32_t(vr)) - 100 * (uint32_t(vrDiv100))
       roundUp = vrMod100 >= 50
       vr = vrDiv100
@@ -244,11 +244,11 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
     # Loop iterations below (approximately), with optimization above:
     # 0: 70.6%, 1: 27.8%, 2: 1.40%, 3: 0.14%, 4+: 0.02%
     while true:
-      let vpDiv10: uint64 = div10(vp)
-      let vmDiv10: uint64 = div10(vm)
+      let vpDiv10: uint64 = vp div 10
+      let vmDiv10: uint64 = vm div 10
       if vpDiv10 <= vmDiv10:
         break
-      let vrDiv10: uint64 = div10(vr)
+      let vrDiv10: uint64 = vr div 10
       let vrMod10: uint32 = (uint32_t(vr)) - 10 * (uint32_t(vrDiv10))
       roundUp = vrMod10 >= 5
       vr = vrDiv10
@@ -302,7 +302,7 @@ proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int {.inli
   # so the rest will fit into uint32_t.
   if (output shr 32) != 0:
     # Expensive 64-bit division.
-    let q: uint64 = div1e8(output)
+    let q: uint64 = output div 100000000
     var output2: uint32 = (uint32_t(output)) - 100000000 * (uint32_t(q))
     output = q
 
@@ -428,7 +428,7 @@ proc d2s_buffered_n(f: float64, resul: var string): int =
     # (This is not needed for fixed-point notation, so it might be beneficial to trim
     # trailing zeros in to_chars only if needed - once fixed-point notation output is implemented.)
     while true:
-      let q: uint64 = div10(v.mantissa)
+      let q: uint64 = v.mantissa div 10
       let r: uint32 = (uint32_t(v.mantissa)) - 10 * (uint32_t(q))
       if r != 0:
         break
