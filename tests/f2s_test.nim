@@ -76,7 +76,7 @@ suite "f2s":
     ASSERT_F2S("6.0898E-39", 6.0898E-39f)
     ASSERT_F2S("1.0310042E-3", 0.0010310042f)
     ASSERT_F2S("2.882326E17", 2.8823261E17f)
-    when false:# _WIN32
+    when true:# not _WIN32
       # MSVC rounds this up to the next higher floating point number
       ASSERT_F2S("7.038531E-26", 7.038531E-26f)
     else:
