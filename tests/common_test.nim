@@ -19,8 +19,6 @@ import std/unittest
 
 import ryu/common
 
-#NIM:
-from strutils import strip
 suite "common":
   test "decimalLength9":
     check 1u == decimalLength9(0)
@@ -57,30 +55,26 @@ suite "common":
     check 1831u == log10Pow5(2620)
 
   test "copy_special_str":
-    var buffer = ""
-    buffer.setLen 100
+    var buffer: string
+    buffer.setLen 3
     check 3 == copy_special_str(buffer, false, false, true)
-    check "NaN" == buffer.strip(chars = {'\0'})
+    check "NaN" == buffer
 
-    buffer = ""
-    buffer.setLen 100
+    buffer.setLen 8
     check 8 == copy_special_str(buffer, false, true, false)
-    check "Infinity" == buffer.strip(chars = {'\0'})
+    check "Infinity" == buffer
 
-    buffer = ""
-    buffer.setLen 100
+    buffer.setLen 9
     check 9 == copy_special_str(buffer, true, true, false)
-    check "-Infinity" == buffer.strip(chars = {'\0'})
+    check "-Infinity" == buffer
 
-    buffer = ""
-    buffer.setLen 100
+    buffer.setLen 3
     check 3 == copy_special_str(buffer, false, false, false)
-    check "0E0" == buffer.strip(chars = {'\0'})
+    check "0E0" == buffer
 
-    buffer = ""
-    buffer.setLen 100
+    buffer.setLen 4
     check 4 == copy_special_str(buffer, true, false, false)
-    check "-0E0" == buffer.strip(chars = {'\0'})
+    check "-0E0" == buffer
 
   test "float_to_bits":
     check 0u == float_to_bits(0.0f)

@@ -79,94 +79,48 @@ const DOUBLE_POW5_TABLE: array[POW5_TABLE_SIZE, uint64] = [
 298023223876953125'u64 #, 1490116119384765625'u64
 ]
 
-when defined(HAS_UINT128):
-  discard #[ NIM:
-  # Computes 5^i in the form required by Ryu, and stores it in the given pointer.
-  static inline void double_computePow5(const uint32_t i, uint64_t* const result) {
-    const uint32_t base = i / POW5_TABLE_SIZE
-    const uint32_t base2 = base * POW5_TABLE_SIZE
-    const uint32_t offset = i - base2
-    const uint64_t* const mul = DOUBLE_POW5_SPLIT2[base]
-    if (offset == 0) {
-      result[0] = mul[0]
-      result[1] = mul[1]
-      return
-    }
-    const uint64_t m = DOUBLE_POW5_TABLE[offset]
-    const uint128_t b0 = ((uint128_t) m) * mul[0]
-    const uint128_t b2 = ((uint128_t) m) * mul[1]
-    const uint32_t delta = pow5bits(i) - pow5bits(base2)
-    const uint128_t shiftedSum = (b0 >> delta) + (b2 << (64 - delta)) + ((POW5_OFFSETS[i / 16] >> ((i % 16) << 1)) & 3)
-    result[0] = (uint64_t) shiftedSum
-    result[1] = (uint64_t) (shiftedSum >> 64)
-  }
+# Computes 5^i in the form required by Ryu, and stores it in the given pointer.
+proc double_computePow5*(i: uint32, result: var array[2, uint64]) {.inline.} =
+  let base: uint32 = i div POW5_TABLE_SIZE
+  let base2: uint32 = base * POW5_TABLE_SIZE
+  let offset: uint32 = i - base2
+  let mul: array[2, uint64] = DOUBLE_POW5_SPLIT2[base]
+  if offset == 0:
+    result[0] = mul[0]
+    result[1] = mul[1]
+    return
+  let m: uint64 = DOUBLE_POW5_TABLE[offset]
+  var high1: uint64
+  let low1: uint64 = umul128(m, mul[1], high1)
+  var high0: uint64
+  let low0: uint64 = umul128(m, mul[0], high0)
+  let sum: uint64 = high0 + low1
+  if sum < high0:
+    inc high1 # overflow into high1
+  # high1 | sum | low0
+  let delta: uint32 = uint32 pow5bits(int32 i) - pow5bits(int32 base2)
+  result[0] = shiftright128(low0, sum, delta) + ((POW5_OFFSETS[i div 16] shr ((i mod 16) shl 1)) and 3)
+  result[1] = shiftright128(sum, high1, delta)
 
-  # Computes 5^-i in the form required by Ryu, and stores it in the given pointer.
-  static inline void double_computeInvPow5(const uint32_t i, uint64_t* const result) {
-    const uint32_t base = (i + POW5_TABLE_SIZE - 1) / POW5_TABLE_SIZE
-    const uint32_t base2 = base * POW5_TABLE_SIZE
-    const uint32_t offset = base2 - i
-    const uint64_t* const mul = DOUBLE_POW5_INV_SPLIT2[base]; # 1/5^base2
-    if (offset == 0) {
-      result[0] = mul[0]
-      result[1] = mul[1]
-      return
-    }
-    const uint64_t m = DOUBLE_POW5_TABLE[offset]; # 5^offset
-    const uint128_t b0 = ((uint128_t) m) * (mul[0] - 1)
-    const uint128_t b2 = ((uint128_t) m) * mul[1]; # 1/5^base2 * 5^offset = 1/5^(base2-offset) = 1/5^i
-    const uint32_t delta = pow5bits(base2) - pow5bits(i)
-    const uint128_t shiftedSum =
-      ((b0 >> delta) + (b2 << (64 - delta))) + 1 + ((POW5_INV_OFFSETS[i / 16] >> ((i % 16) << 1)) & 3)
-    result[0] = (uint64_t) shiftedSum
-    result[1] = (uint64_t) (shiftedSum >> 64)
-  }
-  ]#
-
-else:
-
-  # Computes 5^i in the form required by Ryu, and stores it in the given pointer.
-  proc double_computePow5*(i: uint32, result: var array[2, uint64]) {.inline.} =
-    let base: uint32 = i div POW5_TABLE_SIZE
-    let base2: uint32 = base * POW5_TABLE_SIZE
-    let offset: uint32 = i - base2
-    let mul: array[2, uint64] = DOUBLE_POW5_SPLIT2[base]
-    if offset == 0:
-      result[0] = mul[0]
-      result[1] = mul[1]
-      return
-    let m: uint64 = DOUBLE_POW5_TABLE[offset]
-    var high1: uint64
-    let low1: uint64 = umul128(m, mul[1], high1)
-    var high0: uint64
-    let low0: uint64 = umul128(m, mul[0], high0)
-    let sum: uint64 = high0 + low1
-    if sum < high0:
-      inc high1; # overflow into high1
-    # high1 | sum | low0
-    let delta: uint32 = uint32_t pow5bits(int32_t i) - pow5bits(int32_t base2)
-    result[0] = shiftright128(low0, sum, delta) + ((POW5_OFFSETS[i div 16] shr ((i mod 16) shl 1)) and 3)
-    result[1] = shiftright128(sum, high1, delta)
-
-  # Computes 5^-i in the form required by Ryu, and stores it in the given pointer.
-  proc double_computeInvPow5*(i: uint32, result: var array[2, uint64]) {.inline.} =
-    let base: uint32 = (i + POW5_TABLE_SIZE - 1) div POW5_TABLE_SIZE
-    let base2: uint32 = base * POW5_TABLE_SIZE
-    let offset: uint32 = base2 - i
-    let mul: array[2, uint64] = DOUBLE_POW5_INV_SPLIT2[base]; # 1/5^base2
-    if offset == 0:
-      result[0] = mul[0]
-      result[1] = mul[1]
-      return
-    let m: uint64 = DOUBLE_POW5_TABLE[offset]
-    var high1: uint64
-    let low1: uint64 = umul128(m, mul[1], high1)
-    var high0: uint64
-    let low0: uint64 = umul128(m, mul[0] - 1, high0)
-    let sum: uint64 = high0 + low1
-    if sum < high0:
-      inc high1; # overflow into high1
-    # high1 | sum | low0
-    let delta: uint32 = uint32_t pow5bits(int32_t base2) - pow5bits(int32_t i)
-    result[0] = shiftright128(low0, sum, delta) + 1 + ((POW5_INV_OFFSETS[i div 16] shr ((i mod 16) shl 1)) and 3)
-    result[1] = shiftright128(sum, high1, delta)
+# Computes 5^-i in the form required by Ryu, and stores it in the given pointer.
+proc double_computeInvPow5*(i: uint32, result: var array[2, uint64]) {.inline.} =
+  let base: uint32 = (i + POW5_TABLE_SIZE - 1) div POW5_TABLE_SIZE
+  let base2: uint32 = base * POW5_TABLE_SIZE
+  let offset: uint32 = base2 - i
+  let mul: array[2, uint64] = DOUBLE_POW5_INV_SPLIT2[base] # 1/5^base2
+  if offset == 0:
+    result[0] = mul[0]
+    result[1] = mul[1]
+    return
+  let m: uint64 = DOUBLE_POW5_TABLE[offset]
+  var high1: uint64
+  let low1: uint64 = umul128(m, mul[1], high1)
+  var high0: uint64
+  let low0: uint64 = umul128(m, mul[0] - 1, high0)
+  let sum: uint64 = high0 + low1
+  if sum < high0:
+    inc high1 # overflow into high1
+  # high1 | sum | low0
+  let delta: uint32 = uint32 pow5bits(int32 base2) - pow5bits(int32 i)
+  result[0] = shiftright128(low0, sum, delta) + 1 + ((POW5_INV_OFFSETS[i div 16] shr ((i mod 16) shl 1)) and 3)
+  result[1] = shiftright128(sum, high1, delta)

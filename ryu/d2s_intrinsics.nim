@@ -20,29 +20,29 @@ import common
 
 proc umul128*(a, b: uint64, productHi: var uint64): uint64 {.inline.} =
   # The casts here help MSVC to avoid calls to the __allmul library function.
-  let aLo: uint32 = uint32_t(a)
-  let aHi: uint32 = uint32_t(a shr 32)
-  let bLo: uint32 = uint32_t(b)
-  let bHi: uint32 = uint32_t(b shr 32)
+  let aLo: uint32 = a.uint32
+  let aHi: uint32 = uint32(a shr 32)
+  let bLo: uint32 = b.uint32
+  let bHi: uint32 = uint32(b shr 32)
 
-  let b00: uint64 = uint64_t(aLo) * bLo
-  let b01: uint64 = uint64_t(aLo) * bHi
-  let b10: uint64 = uint64_t(aHi) * bLo
-  let b11: uint64 = uint64_t(aHi) * bHi
+  let b00: uint64 = aLo.uint64 * bLo
+  let b01: uint64 = aLo.uint64 * bHi
+  let b10: uint64 = aHi.uint64 * bLo
+  let b11: uint64 = aHi.uint64 * bHi
 
-  let b00Lo: uint32 = uint32_t(b00)
-  let b00Hi: uint32 = uint32_t(b00 shr 32)
+  let b00Lo: uint32 = b00.uint32
+  let b00Hi: uint32 = uint32(b00 shr 32)
 
   let mid1: uint64 = b10 + b00Hi
-  let mid1Lo: uint32 = uint32_t(mid1)
-  let mid1Hi: uint32 = uint32_t(mid1 shr 32)
+  let mid1Lo: uint32 = mid1.uint32
+  let mid1Hi: uint32 = uint32(mid1 shr 32)
 
   let mid2: uint64 = b01 + mid1Lo
-  let mid2Lo: uint32 = uint32_t(mid2)
-  let mid2Hi: uint32 = uint32_t(mid2 shr 32)
+  let mid2Lo: uint32 = mid2.uint32
+  let mid2Hi: uint32 = uint32(mid2 shr 32)
 
   let pHi: uint64 = b11 + mid1Hi + mid2Hi
-  let pLo: uint64 = (uint64_t(mid2Lo) shl 32) or b00Lo
+  let pLo: uint64 = b00Lo or mid2Lo.uint64 shl 32
 
   productHi = pHi
   return pLo
@@ -56,7 +56,7 @@ proc shiftright128*(lo, hi: uint64, dist: uint32): uint64 {.inline.} =
   else:
     # Avoid a 64-bit shift by taking advantage of the range of shift values.
     assert dist >= 32
-    return (hi shl (64 - dist)) or (uint32_t(lo shr 32) shr (dist - 32))
+    return (hi shl (64 - dist)) or uint32(lo shr 32) shr (dist - 32)
 
 proc pow5Factor(value: uint64): uint32 {.inline.} =
   var value = value
@@ -64,7 +64,7 @@ proc pow5Factor(value: uint64): uint32 {.inline.} =
   while true:
     assert value != 0
     let q: uint64 = value div 5
-    let r: uint32 = (uint32_t(value)) - 5 * (uint32_t(q))
+    let r: uint32 = value.uint32 - 5 * q.uint32
     if r != 0:
       break
     value = q
@@ -91,18 +91,18 @@ proc mulShiftAll64*(m: uint64, mul: array[2, uint64], j: int32, vp, vm: var uint
   let lo: uint64 = umul128(m, mul[0], tmp)
   var hi: uint64
   let mid: uint64 = tmp + umul128(m, mul[1], hi)
-  hi += uint64 ord mid < tmp; # overflow into hi
+  hi += uint64 ord mid < tmp # overflow into hi
 
   let lo2: uint64 = lo + mul[0]
   let mid2: uint64 = mid + mul[1] + uint64 ord(lo2 < lo)
   let hi2: uint64 = hi + uint64 ord(mid2 < mid)
-  vp = shiftright128(mid2, hi2, uint32_t(j - 64 - 1))
+  vp = shiftright128(mid2, hi2, uint32(j - 64 - 1))
 
   if mmShift == 1:
     let lo3: uint64 = lo - mul[0]
     let mid3: uint64 = mid - mul[1] - uint64 ord(lo3 > lo)
     let hi3: uint64 = hi - uint64 ord(mid3 > mid)
-    vm = shiftright128(mid3, hi3, uint32_t(j - 64 - 1))
+    vm = shiftright128(mid3, hi3, uint32(j - 64 - 1))
   else:
     let lo3: uint64 = lo + lo
     let mid3: uint64 = mid + mid + uint64 ord(lo3 < lo)
@@ -110,6 +110,6 @@ proc mulShiftAll64*(m: uint64, mul: array[2, uint64], j: int32, vp, vm: var uint
     let lo4: uint64 = lo3 - mul[0]
     let mid4: uint64 = mid3 - mul[1] - uint64 ord(lo4 > lo3)
     let hi4: uint64 = hi3 - uint64 ord(mid4 > mid3)
-    vm = shiftright128(mid4, hi4, uint32_t(j - 64))
+    vm = shiftright128(mid4, hi4, uint32(j - 64))
 
-  return shiftright128(mid, hi, uint32_t(j - 64 - 1))
+  return shiftright128(mid, hi, uint32(j - 64 - 1))

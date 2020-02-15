@@ -14,15 +14,6 @@
 # Unless required by applicable law or agreed to in writing, this software
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.
-#if defined(_M_IX86) || defined(_M_ARM)
-#define RYU_32_BIT_PLATFORM
-#endif
-
-#NIM:
-template int32_t*(t: untyped): untyped = cast[int32](t)
-template uint32_t*(t: untyped): untyped = cast[uint32](t)
-template uint8_t*(t: untyped): untyped = cast[uint8](t)
-template uint64_t*(t: untyped): untyped = cast[uint64](t)
 
 # Returns the number of decimal digits in v, which must not contain more than 9 digits.
 proc decimalLength9*(v: uint32): uint32 {.inline.} =
@@ -40,41 +31,36 @@ proc decimalLength9*(v: uint32): uint32 {.inline.} =
   if v >= 10: return 2
   return 1
 
-# Returns e == 0 ? 1 : [log_2(5^e)]; requires 0 <= e <= 3528.
-proc log2pow5(e: int32): int32 {.inline.} =
+# Returns if e == 0: 1 else: [log_2(5^e)]; requires 0 <= e <= 3528.
+template log2pow5(e: int32): int32 =
   # This approximation works up to the point that the multiplication overflows at e = 3529.
   # If the multiplication were done in 64 bits, it would fail at 5^4004 which is just greater
   # than 2^9297.
-  assert e >= 0
-  assert e <= 3528
-  return int32_t((uint32_t(e) * 1217359) shr 19)
+  assert e in 0..3528
+  int32((e.uint32 * 1217359) shr 19)
 
-# Returns e == 0 ? 1 : ceil(log_2(5^e)); requires 0 <= e <= 3528.
-proc pow5bits*(e: int32): int32 {.inline.} =
+# Returns if e == 0: 1 else: ceil(log_2(5^e)); requires 0 <= e <= 3528.
+template pow5bits*(e: int32): int32 =
   # This approximation works up to the point that the multiplication overflows at e = 3529.
   # If the multiplication were done in 64 bits, it would fail at 5^4004 which is just greater
   # than 2^9297.
-  assert e >= 0
-  assert e <= 3528
-  return int32_t(((uint32_t(e) * 1217359) shr 19) + 1)
+  assert e in 0..3528
+  int32(((e.uint32 * 1217359) shr 19) + 1)
 
-# Returns e == 0 ? 1 : ceil(log_2(5^e)); requires 0 <= e <= 3528.
-proc ceil_log2pow5*(e: int32): int32 {.inline.} =
-  return log2pow5(e) + 1
+# Returns if e == 0: 1 else: ceil(log_2(5^e)); requires 0 <= e <= 3528.
+template ceil_log2pow5*(e: int32): int32 = log2pow5(e) + 1
 
 # Returns floor(log_10(2^e)); requires 0 <= e <= 1650.
-proc log10Pow2*(e: int32): uint32 {.inline.} =
+template log10Pow2*(e: int32): uint32 =
   # The first value this approximation fails for is 2^1651 which is just greater than 10^297.
-  assert e >= 0
-  assert e <= 1650
-  return (uint32_t(e) * 78913) shr 18
+  assert e in 0..1650
+  (e.uint32 * 78913) shr 18
 
 # Returns floor(log_10(5^e)); requires 0 <= e <= 2620.
-proc log10Pow5*(e: int32): uint32 {.inline.} =
+template log10Pow5*(e: int32): uint32 =
   # The first value this approximation fails for is 5^2621 which is just greater than 10^1832.
-  assert e >= 0
-  assert e <= 2620
-  return (uint32_t(e) * 732923) shr 20
+  assert e in 0..2620
+  (e.uint32 * 732923) shr 20
 
 proc copy_special_str*(resul: var string, sign, exponent, mantissa: bool): int32 {.inline.} =
   if mantissa:
@@ -83,17 +69,11 @@ proc copy_special_str*(resul: var string, sign, exponent, mantissa: bool): int32
   if sign:
     resul[0] = '-'
   if exponent:
-    resul[ord(sign)..ord(sign)+8] = "Infinity"
+    resul[ord(sign)..<ord(sign)+8] = "Infinity"
     return int32 ord(sign) + 8
-  resul[ord(sign)..ord(sign)+3] = "0E0"
+  resul[ord(sign)..<ord(sign)+3] = "0E0"
   return int32 ord(sign) + 3
 
-proc float_to_bits*(f: float32): uint32 {.inline.} =
-  var bits: uint32 = 0
-  copyMem(addr bits, unsafeAddr f, sizeof(float32))
-  return bits
+proc float_to_bits*(f: float32): uint32 {.inline.} = copyMem(addr result, unsafeAddr f, sizeof float32)
 
-proc double_to_bits*(d: float64): uint64 {.inline.} =
-  var bits: uint64 = 0
-  copyMem(addr bits, unsafeAddr d, sizeof(float64))
-  return bits
+proc double_to_bits*(d: float64): uint64 {.inline.} = copyMem(addr result, unsafeAddr d, sizeof float64)
