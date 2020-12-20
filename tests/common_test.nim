@@ -30,14 +30,6 @@ suite "common":
     check 3u == decimalLength9(999)
     check 9u == decimalLength9(999999999)
 
-  test "ceil_log2pow5":
-    check 1 == ceil_log2pow5(0)
-    check 3 == ceil_log2pow5(1)
-    check 5 == ceil_log2pow5(2)
-    check 7 == ceil_log2pow5(3)
-    check 10 == ceil_log2pow5(4)
-    check 8192 == ceil_log2pow5(3528)
-
   test "log10Pow2":
     check 0u == log10Pow2(0)
     check 0u == log10Pow2(1)
