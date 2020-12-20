@@ -24,8 +24,6 @@
 #     size by about 10x (only one case, and only double) at the cost of some
 #     performance.
 
-include ryu
-
 import common
 import digit_table
 import d2s_intrinsics

@@ -26,8 +26,6 @@
 #
 # -d:RYU_FLOAT_FULL_TABLE
 
-include ryu
-
 import common
 import digit_table
 
