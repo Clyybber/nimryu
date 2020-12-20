@@ -19,10 +19,9 @@
 # -d:RYU_DEBUG Generate verbose debugging output to stdout.
 #
 # -d:RYU_OPTIMIZE_SIZE Use smaller lookup tables. Instead of storing every
-#     required power of 5, only store every 26th entry, and compute
-#     intermediate values with a multiplication. This reduces the lookup table
-#     size by about 10x (only one case, and only double) at the cost of some
-#     performance.
+#     required power of 5, only store every 26th entry, and compute intermediate
+#     values with a multiplication. This reduces the lookup table size by about
+#     10x (only one case, and only double) at the cost of some performance.
 #
 # -d:RYU_FLOAT_FULL_TABLE
 
@@ -43,9 +42,23 @@ const FLOAT_MANTISSA_BITS = 23
 const FLOAT_EXPONENT_BITS = 8
 const FLOAT_BIAS = 127
 
+proc decimalLength9*(v: uint32): uint32 {.inline.} =
+  # Returns the number of decimal digits in v, which must not contain more than 9 digits.
+  # Function precondition: v is not a 10-digit number.
+  # (9 digits are sufficient for round-tripping.)
+  assert v < 1000000000
+  if v >= 100000000: 9
+  elif v >= 10000000: 8
+  elif v >= 1000000: 7
+  elif v >= 100000: 6
+  elif v >= 10000: 5
+  elif v >= 1000: 4
+  elif v >= 100: 3
+  elif v >= 10: 2
+  else: 1
+
 proc pow5factor_32(value: uint32): uint32 {.inline.} =
   var value = value
-  var count = 0'u32
   while true:
     assert value != 0
     let q = value div 5
@@ -53,18 +66,17 @@ proc pow5factor_32(value: uint32): uint32 {.inline.} =
     if r != 0:
       break
     value = q
-    inc count
-  return count
+    inc result
 
-# Returns true if value is divisible by 5^p.
 template multipleOfPowerOf5_32(value: uint32, p: uint32): bool = pow5factor_32(value) >= p
+  # Returns true if value is divisible by 5^p.
 
-# Returns true if value is divisible by 2^p.
 template multipleOfPowerOf2_32(value: uint32, p: uint32): bool = (value and ((1u shl p) - 1)) == 0
+  # Returns true if value is divisible by 2^p.
 
-# It seems to be slightly faster to avoid uint128_t here, although the
-# generated code for uint128_t looks slightly nicer.
 proc mulShift32(m: uint32, factor: uint64, shift: int32): uint32 {.inline.} =
+  # It seems to be slightly faster to avoid uint128_t here, although the
+  # generated code for uint128_t looks slightly nicer.
   assert shift > 32
 
   # The casts here help MSVC to avoid calls to the __allmul library
@@ -83,35 +95,35 @@ proc mulShift32(m: uint32, factor: uint64, shift: int32): uint32 {.inline.} =
     bits1Lo += bits0Hi
     bits1Hi += (bits1Lo < bits0Hi)
     let s = shift - 32
-    return (bits1Hi shl (32 - s)) or (bits1Lo shr s)
+    (bits1Hi shl (32 - s)) or (bits1Lo shr s)
   else: # RYU_32_BIT_PLATFORM
     let sum = (bits0 shr 32) + bits1
     let shiftedSum = sum shr (shift - 32)
     assert shiftedSum <= uint32.high
-    return shiftedSum.uint32
+    shiftedSum.uint32
 
 proc mulPow5InvDivPow2(m: uint32, q: uint32, j: int32): uint32 {.inline.} =
   when defined(RYU_FLOAT_FULL_TABLE):
-    return mulShift32(m, FLOAT_POW5_INV_SPLIT[q], j)
+    mulShift32(m, FLOAT_POW5_INV_SPLIT[q], j)
   elif defined(RYU_OPTIMIZE_SIZE):
     # The inverse multipliers are defined as [2^x / 5^y] + 1; the upper 64 bits from the double lookup
     # table are the correct bits for [2^x / 5^y], so we have to add 1 here. Note that we rely on the
     # fact that the added 1 that's already stored in the table never overflows into the upper 64 bits.
     var pow5: array[2, uint64]
     double_computeInvPow5(q, pow5)
-    return mulShift32(m, pow5[1] + 1, j)
+    mulShift32(m, pow5[1] + 1, j)
   else:
-    return mulShift32(m, DOUBLE_POW5_INV_SPLIT[q][1] + 1, j)
+    mulShift32(m, DOUBLE_POW5_INV_SPLIT[q][1] + 1, j)
 
 proc mulPow5divPow2(m: uint32, i: uint32, j: int32): uint32 {.inline.} =
   when defined(RYU_FLOAT_FULL_TABLE):
-    return mulShift32(m, FLOAT_POW5_SPLIT[i], j)
+    mulShift32(m, FLOAT_POW5_SPLIT[i], j)
   elif defined(RYU_OPTIMIZE_SIZE):
     var pow5: array[2, uint64]
     double_computePow5(i, pow5)
-    return mulShift32(m, pow5[1], j)
+    mulShift32(m, pow5[1], j)
   else:
-    return mulShift32(m, DOUBLE_POW5_SPLIT[i][1], j)
+    mulShift32(m, DOUBLE_POW5_SPLIT[i][1], j)
 
 # A floating decimal representing m * 10^e.
 type floating_decimal_32 = object
@@ -262,24 +274,20 @@ proc f2d(ieeeMantissa: uint32, ieeeExponent: uint32): floating_decimal_32 {.inli
       echo "vr is trailing zeros=",vrIsTrailingZeros
     # We need to take vr + 1 if vr is outside bounds or we need to round up.
     output = vr + uint32 ord(vr == vm or lastRemovedDigit >= 5)
-  let exp = e10 + removed
+
+  result.exponent = e10 + removed
+  result.mantissa = output
 
   when defined(RYU_DEBUG):
     echo "V+=",vp,"\nV =",vr,"\nV-=",vm
     echo "O=",output
-    echo "EXP=",exp
-
-  var fd: floating_decimal_32
-  fd.exponent = exp
-  fd.mantissa = output
-  return fd
+    echo "EXP=",result.exponent
 
 proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.inline.} =
   # Step 5: Print the decimal representation.
-  var index = 0'i32
   if sign:
-    resul[index] = '-'
-    inc index
+    resul[result] = '-'
+    inc result
 
   var output = v.mantissa
   let olength = decimalLength9(output)
@@ -293,8 +301,8 @@ proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.in
   # The following code is equivalent to:
   # for i in 0'u32..<olength - 1:
   #   let c = output mod 10; output /= 10
-  #   resul[index + olength - i] = (char) ('0' + c)
-  # resul[index] = '0' + output mod 10
+  #   resul[result + olength - i] = (char) ('0' + c)
+  # resul[result] = '0' + output mod 10
   var i = 0'u32
   while output >= 10000:
     when false:#__clang__ # https://bugs.llvm.org/show_bug.cgi?id=38217
@@ -304,46 +312,44 @@ proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.in
     output = output div 10000
     let c0 = (c mod 100) shl 1
     let c1 = (c div 100) shl 1
-    resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0 .. c0 + 1])
-    resul[(index + int32 olength - i - 3) .. (index + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1 .. c1 + 1])
+    resul[(result + int32 olength - i - 1) .. (result + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0 .. c0 + 1])
+    resul[(result + int32 olength - i - 3) .. (result + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1 .. c1 + 1])
     i += 4
   if output >= 100:
     let c = (output mod 100) shl 1
     output = output div 100
-    resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c .. c + 1])
+    resul[(result + int32 olength - i - 1) .. (result + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c .. c + 1])
     i += 2
   if output >= 10:
     let c = output shl 1
     # We can't use memcpy here: the decimal dot goes between these two digits.
-    resul[index + int32 olength - i] = DIGIT_TABLE[c + 1]
-    resul[index] = DIGIT_TABLE[c]
+    resul[result + int32 olength - i] = DIGIT_TABLE[c + 1]
+    resul[result] = DIGIT_TABLE[c]
   else:
-    resul[index] = cast[char](uint32('0') + output)
+    resul[result] = cast[char](uint32('0') + output)
 
   # Print decimal point if needed.
   if olength > 1:
-    resul[index + 1] = '.'
-    index += olength.int32 + 1
+    resul[result + 1] = '.'
+    result += olength.int32 + 1
   else:
-    inc index
+    inc result
 
   # Print the exponent.
-  resul[index] = 'E'
-  inc index
+  resul[result] = 'E'
+  inc result
   var exp = v.exponent + olength.int32 - 1
   if exp < 0:
-    resul[index] = '-'
-    inc index
+    resul[result] = '-'
+    inc result
     exp = -exp
 
   if exp >= 10:
-    resul[index .. index + 1] = cast[string](DIGIT_TABLE[2 * exp .. 2 * exp + 1])
-    index += 2
+    resul[result .. result + 1] = cast[string](DIGIT_TABLE[2 * exp .. 2 * exp + 1])
+    result += 2
   else:
-    resul[index] = cast[char](int32('0') + exp)
-    inc index
-
-  return index
+    resul[result] = cast[char](int32('0') + exp)
+    inc result
 
 proc f2s(f: float32): string =
   result.setLen 16

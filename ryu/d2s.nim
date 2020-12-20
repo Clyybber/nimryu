@@ -19,10 +19,9 @@
 # -d:RYU_DEBUG Generate verbose debugging output to stdout.
 #
 # -d:RYU_OPTIMIZE_SIZE Use smaller lookup tables. Instead of storing every
-#     required power of 5, only store every 26th entry, and compute
-#     intermediate values with a multiplication. This reduces the lookup table
-#     size by about 10x (only one case, and only double) at the cost of some
-#     performance.
+#     required power of 5, only store every 26th entry, and compute intermediate
+#     values with a multiplication. This reduces the lookup table size by about
+#     10x (only one case, and only double) at the cost of some performance.
 
 import common
 import digit_table
@@ -44,26 +43,26 @@ proc decimalLength17(v: uint64): uint32 {.inline.} =
   # Function precondition: v is not an 18, 19, or 20-digit number.
   # (17 digits are sufficient for round-tripping.)
   assert v < 100000000000000000'u64
-  if v >= 10000000000000000'u64: return 17
-  if v >= 1000000000000000'u64: return 16
-  if v >= 100000000000000'u64: return 15
-  if v >= 10000000000000'u64: return 14
-  if v >= 1000000000000'u64: return 13
-  if v >= 100000000000'u64: return 12
-  if v >= 10000000000'u64: return 11
-  if v >= 1000000000'u64: return 10
-  if v >= 100000000'u64: return 9
-  if v >= 10000000'u64: return 8
-  if v >= 1000000'u64: return 7
-  if v >= 100000'u64: return 6
-  if v >= 10000'u64: return 5
-  if v >= 1000'u64: return 4
-  if v >= 100'u64: return 3
-  if v >= 10'u64: return 2
-  return 1
+  if v >= 10000000000000000'u64: 17
+  elif v >= 1000000000000000'u64: 16
+  elif v >= 100000000000000'u64: 15
+  elif v >= 10000000000000'u64: 14
+  elif v >= 1000000000000'u64: 13
+  elif v >= 100000000000'u64: 12
+  elif v >= 10000000000'u64: 11
+  elif v >= 1000000000'u64: 10
+  elif v >= 100000000'u64: 9
+  elif v >= 10000000'u64: 8
+  elif v >= 1000000'u64: 7
+  elif v >= 100000'u64: 6
+  elif v >= 10000'u64: 5
+  elif v >= 1000'u64: 4
+  elif v >= 100'u64: 3
+  elif v >= 10'u64: 2
+  else: 1
 
-# A floating decimal representing m * 10^e.
 type floating_decimal_64 = object
+  # A floating decimal representing m * 10^e.
   mantissa: uint64
   # Decimal exponent's range is -324 to 308
   # inclusive, and can fit in a short if needed.
@@ -251,24 +250,20 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
       echo "vr is trailing zeros=",vrIsTrailingZeros
     # We need to take vr + 1 if vr is outside bounds or we need to round up.
     output = vr + uint64 ord(vr == vm or roundUp)
-  let exp = e10 + removed
+
+  result.exponent = e10 + removed
+  result.mantissa = output
 
   when defined(RYU_DEBUG):
     echo "V+=",vp,"\nV =",vr,"\nV-=",vm
     echo "O=",output
-    echo "EXP=",exp
-
-  var fd: floating_decimal_64
-  fd.exponent = exp
-  fd.mantissa = output
-  return fd
+    echo "EXP=",result.exponent
 
 proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int32 {.inline.} =
   # Step 5: Print the decimal representation.
-  var index = 0'i32
   if sign:
-    resul[index] = '-'
-    inc index
+    resul[result] = '-'
+    inc result
 
   var output = v.mantissa
   let olength = decimalLength17(output)
@@ -282,8 +277,8 @@ proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int32 {.in
   # The following code is equivalent to:
   # for i in 0'u32..<olength - 1:
   #   let c = output mod 10; output /= 10
-  #   resul[index + olength - i] = (char) ('0' + c)
-  # resul[index] = '0' + output mod 10
+  #   resul[result + olength - i] = (char) ('0' + c)
+  # resul[result] = '0' + output mod 10
 
   var i = 0'u32
   # We prefer 32-bit operations, even on 64-bit platforms.
@@ -303,10 +298,10 @@ proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int32 {.in
     let c1 = (c div 100) shl 1
     let d0 = (d mod 100) shl 1
     let d1 = (d div 100) shl 1
-    resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0.int32..c0.int32+1])
-    resul[(index + int32 olength - i - 3) .. (index + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1.int32..c1.int32+1])
-    resul[(index + int32 olength - i - 5) .. (index + int32 olength - i - 5 + 1)] = cast[string](DIGIT_TABLE[d0.int32..d0.int32+1])
-    resul[(index + int32 olength - i - 7) .. (index + int32 olength - i - 7 + 1)] = cast[string](DIGIT_TABLE[d1.int32..d1.int32+1])
+    resul[(result + int32 olength - i - 1) .. (result + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0.int32..c0.int32+1])
+    resul[(result + int32 olength - i - 3) .. (result + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1.int32..c1.int32+1])
+    resul[(result + int32 olength - i - 5) .. (result + int32 olength - i - 5 + 1)] = cast[string](DIGIT_TABLE[d0.int32..d0.int32+1])
+    resul[(result + int32 olength - i - 7) .. (result + int32 olength - i - 7 + 1)] = cast[string](DIGIT_TABLE[d1.int32..d1.int32+1])
     i += 8
   var output2 = output.uint32
   while output2 >= 10000:
@@ -317,51 +312,49 @@ proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int32 {.in
     output2 = output2 div 10000
     let c0 = (c mod 100) shl 1
     let c1 = (c div 100) shl 1
-    resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0.int32..c0.int32+1])
-    resul[(index + int32 olength - i - 3) .. (index + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1.int32..c1.int32+1])
+    resul[(result + int32 olength - i - 1) .. (result + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0.int32..c0.int32+1])
+    resul[(result + int32 olength - i - 3) .. (result + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1.int32..c1.int32+1])
     i += 4
   if output2 >= 100:
     let c = (output2 mod 100) shl 1
     output2 = output2 div 100
-    resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c.int32..c.int32+1])
+    resul[(result + int32 olength - i - 1) .. (result + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c.int32..c.int32+1])
     i += 2
   if output2 >= 10:
     let c = output2 shl 1
     # We can't use memcpy here: the decimal dot goes between these two digits.
-    resul[index + int32 olength - i] = DIGIT_TABLE[c + 1]
-    resul[index] = DIGIT_TABLE[c]
+    resul[result + int32 olength - i] = DIGIT_TABLE[c + 1]
+    resul[result] = DIGIT_TABLE[c]
   else:
-    resul[index] = cast[char](uint32('0') + output2)
+    resul[result] = cast[char](uint32('0') + output2)
 
   # Print decimal point if needed.
   if olength > 1:
-    resul[index + 1] = '.'
-    index += int32 olength + 1
+    resul[result + 1] = '.'
+    result += int32 olength + 1
   else:
-    inc index
+    inc result
 
   # Print the exponent.
-  resul[index] = 'E'
-  inc index
+  resul[result] = 'E'
+  inc result
   var exp = v.exponent + olength.int32 - 1
   if exp < 0:
-    resul[index] = '-'
-    inc index
+    resul[result] = '-'
+    inc result
     exp = -exp
 
   if exp >= 100:
     let c = exp mod 10
-    resul[index  .. index + 1] = cast[string](DIGIT_TABLE[2 * (exp div 10) .. 2 * (exp div 10) + 1])
-    resul[index + 2] = cast[char](int32('0') + c)
-    index += 3
+    resul[result  .. result + 1] = cast[string](DIGIT_TABLE[2 * (exp div 10) .. 2 * (exp div 10) + 1])
+    resul[result + 2] = cast[char](int32('0') + c)
+    result += 3
   elif exp >= 10:
-    resul[index  .. index + 1] = cast[string](DIGIT_TABLE[2 * exp .. 2 * exp + 1])
-    index += 2
+    resul[result  .. result + 1] = cast[string](DIGIT_TABLE[2 * exp .. 2 * exp + 1])
+    result += 2
   else:
-    resul[index] = cast[char](int32('0') + exp)
-    inc index
-
-  return index
+    resul[result] = cast[char](int32('0') + exp)
+    inc result
 
 proc d2d_small_int(ieeeMantissa: uint64, ieeeExponent: uint32, v: var floating_decimal_64): bool {.inline.} =
   let m2 = (1'u64 shl DOUBLE_MANTISSA_BITS) or ieeeMantissa

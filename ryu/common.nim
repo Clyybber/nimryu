@@ -15,22 +15,6 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.
 
-proc decimalLength9*(v: uint32): uint32 {.inline.} =
-  # Returns the number of decimal digits in v, which must not contain more than 9 digits.
-  # Function precondition: v is not a 10-digit number.
-  # (f2s: 9 digits are sufficient for round-tripping.)
-  # (d2fixed: We print 9-digit blocks.)
-  assert v < 1000000000
-  if v >= 100000000: 9
-  elif v >= 10000000: 8
-  elif v >= 1000000: 7
-  elif v >= 100000: 6
-  elif v >= 10000: 5
-  elif v >= 1000: 4
-  elif v >= 100: 3
-  elif v >= 10: 2
-  else: 1
-
 template pow5bits*(e: int32): int32 =
   # Returns if e == 0: 1 else: ceil(log_2(5^e)); requires 0 <= e <= 3528.
   # This approximation works up to the point that the multiplication overflows at e = 3529.

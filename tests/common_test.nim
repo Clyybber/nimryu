@@ -20,16 +20,6 @@ import std/unittest
 import ryu/common
 
 suite "common":
-  test "decimalLength9":
-    check 1u == decimalLength9(0)
-    check 1u == decimalLength9(1)
-    check 1u == decimalLength9(9)
-    check 2u == decimalLength9(10)
-    check 2u == decimalLength9(99)
-    check 3u == decimalLength9(100)
-    check 3u == decimalLength9(999)
-    check 9u == decimalLength9(999999999)
-
   test "log10Pow2":
     check 0u == log10Pow2(0)
     check 0u == log10Pow2(1)
