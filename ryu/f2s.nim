@@ -109,9 +109,7 @@ proc mulPow5InvDivPow2(m: uint32, q: uint32, j: int32): uint32 {.inline.} =
     # The inverse multipliers are defined as [2^x / 5^y] + 1; the upper 64 bits from the double lookup
     # table are the correct bits for [2^x / 5^y], so we have to add 1 here. Note that we rely on the
     # fact that the added 1 that's already stored in the table never overflows into the upper 64 bits.
-    var pow5: array[2, uint64]
-    double_computeInvPow5(q, pow5)
-    mulShift32(m, pow5[1] + 1, j)
+    mulShift32(m, double_computeInvPow5(q)[1] + 1, j)
   else:
     mulShift32(m, DOUBLE_POW5_INV_SPLIT[q][1] + 1, j)
 
@@ -119,9 +117,7 @@ proc mulPow5divPow2(m: uint32, i: uint32, j: int32): uint32 {.inline.} =
   when defined(RYU_FLOAT_FULL_TABLE):
     mulShift32(m, FLOAT_POW5_SPLIT[i], j)
   elif defined(RYU_OPTIMIZE_SIZE):
-    var pow5: array[2, uint64]
-    double_computePow5(i, pow5)
-    mulShift32(m, pow5[1], j)
+    mulShift32(m, double_computePow5(i)[1], j)
   else:
     mulShift32(m, DOUBLE_POW5_SPLIT[i][1], j)
 

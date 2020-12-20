@@ -25,15 +25,13 @@ import ryu/d2s_full_table
 suite "d2s_table":
   test "double_computePow5":
     for i in 0'u32..<326'u32:
-      var m: array[2, uint64]
-      double_computePow5(i, m)
+      var m = double_computePow5(i)
       check m[0] == DOUBLE_POW5_SPLIT[i][0]
       check m[1] == DOUBLE_POW5_SPLIT[i][1]
 
   test "double_computeInvPow5":
     for i in 0'u32..<292'u32:
-      var m: array[2, uint64]
-      double_computeInvPow5(i, m)
+      let m = double_computeInvPow5(i)
       check m[0] == DOUBLE_POW5_INV_SPLIT[i][0]
       check m[1] == DOUBLE_POW5_INV_SPLIT[i][1]
 

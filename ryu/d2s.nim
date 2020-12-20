@@ -104,9 +104,7 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
     let k = DOUBLE_POW5_INV_BITCOUNT + pow5bits(q.int32) - 1
     let i = -e2 + q.int32 + k
     when defined(RYU_OPTIMIZE_SIZE):
-      var pow5: array[2, uint64]
-      double_computeInvPow5(q, pow5)
-      vr = mulShiftAll64(m2, pow5, i, vp, vm, mmShift)
+      vr = mulShiftAll64(m2, double_computeInvPow5(q), i, vp, vm, mmShift)
     else:
       vr = mulShiftAll64(m2, DOUBLE_POW5_INV_SPLIT[q], i, vp, vm, mmShift)
     when defined(RYU_DEBUG):
@@ -135,9 +133,7 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
     let k = pow5bits(i) - DOUBLE_POW5_BITCOUNT
     let j = q.int32 - k
     when defined(RYU_OPTIMIZE_SIZE):
-      var pow5: array[2, uint64]
-      double_computePow5(uint32 i, pow5)
-      vr = mulShiftAll64(m2, pow5, j, vp, vm, mmShift)
+      vr = mulShiftAll64(m2, double_computePow5(uint32 i), j, vp, vm, mmShift)
     else:
       vr = mulShiftAll64(m2, DOUBLE_POW5_SPLIT[i], j, vp, vm, mmShift)
     when defined(RYU_DEBUG):
