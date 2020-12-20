@@ -351,7 +351,7 @@ proc f2s(f: float32): string =
   result.setLen 16
 
   # Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
-  let bits = float_to_bits(f)
+  let bits = cast[uint32](f)
 
   when defined(RYU_DEBUG):
     var temp = "IN="

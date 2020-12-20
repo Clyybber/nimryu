@@ -73,7 +73,3 @@ proc copy_special_str*(resul: var string, sign, exponent, mantissa: bool): int32
     return int32 ord(sign) + 8
   resul[ord(sign)..<ord(sign)+3] = "0E0"
   return int32 ord(sign) + 3
-
-proc float_to_bits*(f: float32): uint32 {.inline.} = copyMem(addr result, unsafeAddr f, sizeof float32)
-
-proc double_to_bits*(d: float64): uint64 {.inline.} = copyMem(addr result, unsafeAddr d, sizeof float64)

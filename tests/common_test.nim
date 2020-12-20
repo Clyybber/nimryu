@@ -77,9 +77,9 @@ suite "common":
     check "-0E0" == buffer
 
   test "float_to_bits":
-    check 0u == float_to_bits(0.0f)
-    check 0x40490fdau == float_to_bits(3.1415926f)
+    check 0u == cast[uint32](0.0f)
+    check 0x40490fdau == cast[uint32](3.1415926f)
 
   test "double_to_bits":
-    check 0'u64 == double_to_bits(0.0)
-    check 0x400921FB54442D18'u64 == double_to_bits(3.1415926535897932384626433)
+    check 0'u64 == cast[uint64](0.0)
+    check 0x400921FB54442D18'u64 == cast[uint64](3.1415926535897932384626433)

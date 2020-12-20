@@ -396,7 +396,7 @@ proc d2s(f: float64): string =
   result.setLen 25
 
   # Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
-  let bits = double_to_bits(f)
+  let bits = cast[uint64](f)
 
   when defined(RYU_DEBUG):
     var temp = "IN="
