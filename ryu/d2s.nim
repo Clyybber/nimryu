@@ -81,8 +81,7 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
   else:
     e2 = ieeeExponent.int32 - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS - 2
     m2 = (1'u64 shl DOUBLE_MANTISSA_BITS) or ieeeMantissa
-  let even = (m2 and 1) == 0
-  let acceptBounds = even
+  let acceptBounds = (m2 and 1) == 0
 
   when defined(RYU_DEBUG):
     echo "-> ",m2," * 2^",e2 + 2
@@ -266,7 +265,7 @@ proc d2d(ieeeMantissa: uint64, ieeeExponent: uint32): floating_decimal_64 {.inli
   fd.mantissa = output
   return fd
 
-proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int {.inline.} =
+proc to_chars(v: floating_decimal_64, sign: bool, resul: var string): int32 {.inline.} =
   # Step 5: Print the decimal representation.
   var index = 0'i32
   if sign:
@@ -396,7 +395,6 @@ proc d2d_small_int(ieeeMantissa: uint64, ieeeExponent: uint32, v: var floating_d
 proc d2s(f: float64): string =
   result.setLen 25
 
-  var index: int
   # Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
   let bits = double_to_bits(f)
 
@@ -411,27 +409,23 @@ proc d2s(f: float64): string =
   let ieeeMantissa = bits and ((1'u64 shl DOUBLE_MANTISSA_BITS) - 1)
   let ieeeExponent = uint32((bits shr DOUBLE_MANTISSA_BITS) and ((1u shl DOUBLE_EXPONENT_BITS) - 1))
   # Case distinction; exit early for the easy cases.
-  if ieeeExponent == ((1u shl DOUBLE_EXPONENT_BITS) - 1u) or (ieeeExponent == 0 and ieeeMantissa == 0):
-    index = copy_special_str(result, ieeeSign, ieeeExponent != 0, ieeeMantissa != 0)
-  else:
-    var v: floating_decimal_64
-    var isSmallInt = d2d_small_int(ieeeMantissa, ieeeExponent, v)
-    if isSmallInt:
-      # For small integers in the range [1, 2^53), v.mantissa might contain trailing (decimal) zeros.
-      # For scientific notation we need to move these zeros into the exponent.
-      # (This is not needed for fixed-point notation, so it might be beneficial to trim
-      # trailing zeros in to_chars only if needed - once fixed-point notation output is implemented.)
-      while true:
-        let q = v.mantissa div 10
-        let r = v.mantissa.uint32 - 10 * q.uint32
-        if r != 0:
-          break
-        v.mantissa = q
-        inc v.exponent
-    else:
-      v = d2d(ieeeMantissa, ieeeExponent)
+  result.setLen if ieeeExponent == ((1u shl DOUBLE_EXPONENT_BITS) - 1u) or (ieeeExponent == 0 and ieeeMantissa == 0):
+                  copy_special_str(result, ieeeSign, ieeeExponent != 0, ieeeMantissa != 0)
+                else:
+                  var v: floating_decimal_64
+                  if d2d_small_int(ieeeMantissa, ieeeExponent, v):
+                    # For small integers in the range [1, 2^53), v.mantissa might contain trailing (decimal) zeros.
+                    # For scientific notation we need to move these zeros into the exponent.
+                    # (This is not needed for fixed-point notation, so it might be beneficial to trim
+                    # trailing zeros in to_chars only if needed - once fixed-point notation output is implemented.)
+                    while true:
+                      let q = v.mantissa div 10
+                      let r = v.mantissa.uint32 - 10 * q.uint32
+                      if r != 0:
+                        break
+                      v.mantissa = q
+                      inc v.exponent
+                  else:
+                    v = d2d(ieeeMantissa, ieeeExponent)
 
-    index = to_chars(v, ieeeSign, result)
-
-  # Terminate the string.
-  result.setLen index
+                  to_chars(v, ieeeSign, result)

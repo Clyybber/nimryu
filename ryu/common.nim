@@ -21,15 +21,15 @@ proc decimalLength9*(v: uint32): uint32 {.inline.} =
   # (f2s: 9 digits are sufficient for round-tripping.)
   # (d2fixed: We print 9-digit blocks.)
   assert v < 1000000000
-  if v >= 100000000: return 9
-  if v >= 10000000: return 8
-  if v >= 1000000: return 7
-  if v >= 100000: return 6
-  if v >= 10000: return 5
-  if v >= 1000: return 4
-  if v >= 100: return 3
-  if v >= 10: return 2
-  return 1
+  result = if v >= 100000000: 9
+           elif v >= 10000000: 8
+           elif v >= 1000000: 7
+           elif v >= 100000: 6
+           elif v >= 10000: 5
+           elif v >= 1000: 4
+           elif v >= 100: 3
+           elif v >= 10: 2
+           else: 1
 
 # Returns if e == 0: 1 else: [log_2(5^e)]; requires 0 <= e <= 3528.
 template log2pow5(e: int32): int32 =

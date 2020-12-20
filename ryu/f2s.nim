@@ -132,8 +132,7 @@ proc f2d(ieeeMantissa: uint32, ieeeExponent: uint32): floating_decimal_32 {.inli
   else:
     e2 = ieeeExponent.int32 - FLOAT_BIAS - FLOAT_MANTISSA_BITS - 2
     m2 = (1'u32 shl FLOAT_MANTISSA_BITS) or ieeeMantissa
-  let even = (m2 and 1) == 0
-  let acceptBounds = even
+  let acceptBounds = (m2 and 1) == 0
 
   when defined(RYU_DEBUG):
     echo "-> ",m2," * 2^",e2 + 2
@@ -307,15 +306,12 @@ proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.in
     output = output div 10000
     let c0 = (c mod 100) shl 1
     let c1 = (c div 100) shl 1
-    #copyMem(resul + index + olength - i - 1, DIGIT_TABLE + c0, 2)
     resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c0 .. c0 + 1])
-    #copyMem(resul + index + olength - i - 3, DIGIT_TABLE + c1, 2)
     resul[(index + int32 olength - i - 3) .. (index + int32 olength - i - 3 + 1)] = cast[string](DIGIT_TABLE[c1 .. c1 + 1])
     i += 4
   if output >= 100:
     let c = (output mod 100) shl 1
     output = output div 100
-    #copyMem(resul + index + olength - i - 1, DIGIT_TABLE + c, 2)
     resul[(index + int32 olength - i - 1) .. (index + int32 olength - i - 1 + 1)] = cast[string](DIGIT_TABLE[c .. c + 1])
     i += 2
   if output >= 10:
@@ -343,7 +339,6 @@ proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.in
     exp = -exp
 
   if exp >= 10:
-    #copyMem(resul + index, DIGIT_TABLE + 2 * exp, 2)
     resul[index .. index + 1] = cast[string](DIGIT_TABLE[2 * exp .. 2 * exp + 1])
     index += 2
   else:
@@ -355,7 +350,6 @@ proc to_chars(v: floating_decimal_32, sign: bool, resul: var string): int32 {.in
 proc f2s(f: float32): string =
   result.setLen 16
 
-  var index: int
   # Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
   let bits = float_to_bits(f)
 
@@ -371,11 +365,7 @@ proc f2s(f: float32): string =
   let ieeeExponent = (bits shr FLOAT_MANTISSA_BITS) and ((1'u32 shl FLOAT_EXPONENT_BITS) - 1)
 
   # Case distinction; exit early for the easy cases.
-  if ieeeExponent == ((1u shl FLOAT_EXPONENT_BITS) - 1u) or (ieeeExponent == 0 and ieeeMantissa == 0):
-    index = copy_special_str(result, ieeeSign, ieeeExponent != 0, ieeeMantissa != 0)
-  else:
-    let v: floating_decimal_32 = f2d(ieeeMantissa, ieeeExponent)
-    index = to_chars(v, ieeeSign, result)
-
-  # Terminate the string.
-  result.setLen index
+  result.setLen if ieeeExponent == ((1u shl FLOAT_EXPONENT_BITS) - 1u) or (ieeeExponent == 0 and ieeeMantissa == 0):
+                  copy_special_str(result, ieeeSign, ieeeExponent != 0, ieeeMantissa != 0)
+                else:
+                  to_chars(f2d(ieeeMantissa, ieeeExponent), ieeeSign, result)
